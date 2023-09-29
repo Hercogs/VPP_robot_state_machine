@@ -1,4 +1,5 @@
 # This is a sample Python script.
+import json
 
 # Press Shift+F10 to execute it or replace it with your code.
 # Press Double Shift to search everywhere for classes, files, tool windows, actions, and settings.
@@ -9,12 +10,55 @@
 
 # https://realpython.com/async-io-python/
 
-from statemachine import State
-from statemachine import StateMachine
+
 from robot_state_machine import RobotStateTransition
 from statemachine.contrib.diagram import DotGraphMachine
 
+import paho.mqtt.client as mqtt
 
+IP = '85.254.224.137'
+PORT = 8883
+
+
+class RobotMqttCommunication:
+    def __init__(self, ip: str, port: int):
+
+        # Create mqtt client
+        self.mqtt_client = mqtt.Client()
+        self.mqtt_client.on_connect = self.on_connect
+        self.mqtt_client.on_message = self.on_message
+        self.mqtt_client.connect(ip, port)
+
+    def on_connect(self, client, userdata, flags, rc):
+        print("Connected with result code " + str(rc))
+        self.subscribe()
+
+    def on_message(self, client, userdata, msg):
+        print(msg.topic+" "+str(msg.payload))
+
+    def subscribe(self):
+        print('Subscribe to topics')
+
+    def publish_msg(self, topic, payload=None, qos=0, retain=False):
+        print(f'Publish msg: {payload}, on topic: {topic}')
+        status = self.mqtt_client.publish(topic, payload, qos, retain)
+        if status.rc == mqtt.MQTT_ERR_SUCCESS:
+            print('mqtt.MQTT_ERR_SUCCESS')
+        else:
+            print(f'status.rc not OK: {status.rc}')
+        if status.is_published():
+            print('MSG published')
+
+
+
+
+client = RobotMqttCommunication(IP, PORT)
+
+# Loop MQTT client in separate thread
+client.mqtt_client.loop_start()
+
+
+# Create robot state machine
 robot_name = 'Vikings1'
 rsm = RobotStateTransition(robot_name=robot_name)
 
@@ -51,3 +95,10 @@ while True:
             print(f'Error: {ex}')
     else:
         print('Invalid input, state transitions does not exist')
+
+    # Publish MQTT 'ping' message
+    msg = {'sender': robot_name,
+           'location': {'name': rsm.current_state.id}}
+    msg_json = json.dumps(msg)
+    print(msg_json)
+    client.publish_msg(topic='ping', payload=msg_json)
