@@ -5,121 +5,109 @@ from statemachine import State
 from statemachine import StateMachine
 
 from robot_model import RobotModel
+from statemachine.contrib.diagram import DotGraphMachine
 
 
 class RobotStateTransition(StateMachine, RobotModel):
     # States
-    start = State(initial=True)      # Turning on robot
-    idle = State()                      # Robot on magnetic line, ready to receive command
-    idle_lost = State()                 # Robot has lost magnetic line
-    remote_control = State()                        # Remote control
-    waypoint_follower = State()         # Executing mission by waypoints (mission pan unclear)
-    approach_charger = State()          # Executing mission to drive close to charger
-    at_charger = State()                # Robot is at front of charger, but it does not mean it is charging
-    deapproach_charger = State()        # Executing mission to drove off from charger
-    end = State(final=True)               # Shutting down robot
+    start = State(initial=True)  # Turning on robot
+    idle = State()  # Robot on magnetic line, ready to receive command
+    lost = State()  # Robot has lost magnetic line
+    remote_control = State()            # Remote control
+    getting_package = State()  # Execute mission - going after package
+    loading_package = State()  # Execute mission - waiting for package loaded
+    deliver_package = State()  # Execute mission - deliver package
+    unloading_package = State()  # Execute mission - waiting for package to be unloaded
+    approach_charger = State()  # Execute mission - drive to charger
+    charge = State()                    # Robot is at cherging position
+    deapproach_charger = State()  # Execute mission - drive away from charger
+    obstacle = State()  # Obstacle detected during mission
     error = State()                     # Error state - any error (BLDC lost, lidar lost, ...)
+    end = State(final=True)  # Shutting down robot
+
+    # idle_lost = State()                 # Robot has lost magnetic line
+    # waypoint_follower = State()         # Executing mission by waypoints (mission pan unclear)
+    # approach_charger = State()          # Executing mission to drive close to charger
+    # at_charger = State()                # Robot is at front of charger, but it does not mean it is charging
+    # deapproach_charger = State()        # Executing mission to drove off from charger
 
     """ Transitions """
-    # Self transitions
-    internal_start = start.to.itself(internal=True, on='on_idle')
-    internal_idle = idle.to.itself(internal=True, on='on_idle')
-    internal_idle_lost = idle_lost.to.itself(internal=True, on='on_idle')
-    internal_remote_control = remote_control.to.itself(internal=True, on='on_idle')
-    internal_waypoint_follower = waypoint_follower.to.itself(internal=True, on='on_idle')
-    internal_approach_charger = approach_charger.to.itself(internal=True, on='on_idle')
-    internal_at_charger = at_charger.to.itself(internal=True, on='on_idle')
-    internal_deapproach_charger = deapproach_charger.to.itself(internal=True, on='on_idle')
-    internal_error = error.to.itself(internal=True, on='on_idle')
+    turn_on = start.to(idle)
 
-    #st = start.to(start)
+    lost_line = idle.to(lost)
+    go_charging = idle.to(approach_charger) | charge.to.itself()
+    get_package = idle.to(getting_package)
+    charger_detected = idle.to(charge)
 
-    # Manual transitions from specific states
-    """ From START state """
-    initialize = start.to(idle)
-    got_error_at_start = start.to(error)
-    got_end_at_start = start.to(end)
+    found_line = lost.to(idle)
 
-    """ From IDLE state """
-    lost_line = idle.to(idle_lost)
-    got_error_idle = idle.to(error)
-    execute_waypoint_follower = idle.to(waypoint_follower)
-    rc_idle = idle.to(remote_control)
-    execute_approach_charger = idle.to(approach_charger)
-    idle_to_at_charger = idle.to(at_charger)
-    got_end_at_idle = idle.to(end)
+    plan_executed = getting_package.to(loading_package) | deliver_package.to(unloading_package)
+    loaded = loading_package.to(deliver_package)
+    unloaded = unloading_package.to(idle)
 
-    found_line = idle_lost.to(idle)
-    got_error_idle_lost = idle_lost.to(error)
-    rc_idle_lost = idle_lost.to(remote_control)
-    got_end_at_idle_lost = idle_lost.to(end)
+    is_obstacle = getting_package.to(obstacle) | deliver_package.to(obstacle) | \
+                  approach_charger.to(obstacle) | deapproach_charger.to(obstacle)
+    no_obstacle = obstacle.to(getting_package, cond=['no_obstacle_cond']) | \
+                  obstacle.to(deliver_package, cond=['no_obstacle_cond']) | \
+                  obstacle.to(approach_charger, cond=['no_obstacle_cond']) | \
+                  obstacle.to(deapproach_charger, cond=['no_obstacle_cond'])
 
-    got_error_remote_control = remote_control.to(error)
-    to_idle_remote_control = remote_control.to(idle)
-    got_end_at_remote_control = remote_control.to(end)
+    charger_reached = approach_charger.to(charge)
+    retreat_charging = charge.to(deapproach_charger)
 
-    finish_waypoint_follower = waypoint_follower.to(idle)
-    got_error_waypoint_follower = waypoint_follower.to(error)
-    got_end_at_waypoint_follower = waypoint_follower.to(end)
+    human_control_on = idle.to(remote_control) | lost.to(remote_control) | \
+                       charge.to(remote_control) | error.to(remote_control)
+    human_control_off = remote_control.to(idle)
 
-    finish_approach_charger = approach_charger.to(at_charger)
-    cancel_approach_charger = approach_charger.to(idle)
-    got_error_approach_charger = approach_charger.to(error)
-    got_end_at_approach_charger = approach_charger.to(end)
-
-    rc_at_charger = at_charger.to(remote_control)
-    execute_deapproach_charger = at_charger.to(deapproach_charger)
-    got_error_at_charger = at_charger.to(error)
-    got_end_at_charger= at_charger.to(end)
-
-    finish_deapproach_charger = deapproach_charger.to(idle)
-    got_error_deapproach_charger = deapproach_charger.to(error)
-    got_end_at_deapproach_charger = deapproach_charger.to(end)
-
+    is_error = idle.to(error) | lost.to(error) | charge.to(error)
     no_error = error.to(idle)
-    rc_at_error = error.to(remote_control)
-    got_end_at_error = error.to(end)
 
-    # Manual transition to specific states
-    to_idle = initialize | found_line | to_idle_remote_control | finish_waypoint_follower | \
-                            cancel_approach_charger | finish_deapproach_charger | no_error
-    to_idle_lost = lost_line
-    to_remote_control = rc_idle | rc_idle_lost | rc_at_charger | rc_at_error
-    to_waypoint_follower = execute_waypoint_follower
-    to_approach_charger = execute_approach_charger
-    to_at_charger = finish_approach_charger | idle_to_at_charger
-    to_deapproach_charger = execute_deapproach_charger
-    to_end = got_end_at_start | got_end_at_idle | got_end_at_idle_lost | got_end_at_remote_control | \
-            got_end_at_waypoint_follower | got_end_at_approach_charger | got_end_at_charger | \
-            got_end_at_deapproach_charger | got_end_at_error
-    to_error = got_error_at_start | got_error_idle | got_error_idle_lost | got_error_remote_control | \
-               got_error_waypoint_follower | got_error_approach_charger | got_error_at_charger | \
-               got_error_deapproach_charger
+    # Task in canceled by server or failed by robot
+    cancel_task = approach_charger.to(idle) | deapproach_charger.to(idle) | \
+                  getting_package.to(idle) | loading_package.to(idle) | \
+                  deliver_package.to(idle) | unloading_package.to(idle) | \
+                  obstacle.to(idle)
 
-    internal_cycle = internal_start | internal_idle | internal_idle_lost | internal_remote_control | \
-                     internal_waypoint_follower | internal_approach_charger | internal_at_charger | \
-                     internal_deapproach_charger | internal_error
+    turn_off = idle.to(end) | lost.to(end) | charge.to(end)| error.to(end)
 
-    """ Transitions: END """
+    """ Transitions """
 
-    def __init__(self, robot_name = 'robot_'):
+    # Self transitions
+    # internal_start = start.to.itself(internal=True, on='on_idle')
+    # internal_idle = idle.to.itself(internal=True, on='on_idle')
+    # internal_idle_lost = idle_lost.to.itself(internal=True, on='on_idle')
+    # internal_remote_control = remote_control.to.itself(internal=True, on='on_idle')
+    # internal_waypoint_follower = waypoint_follower.to.itself(internal=True, on='on_idle')
+    # internal_approach_charger = approach_charger.to.itself(internal=True, on='on_idle')
+    # internal_at_charger = at_charger.to.itself(internal=True, on='on_idle')
+    # internal_deapproach_charger = deapproach_charger.to.itself(internal=True, on='on_idle')
+    # internal_error = error.to.itself(internal=True, on='on_idle')
+
+    # st = start.to(start)
+
+    def __init__(self, robot_name='robot_'):
         StateMachine.__init__(self)
         RobotModel.__init__(self, robot_name)
+
+        self.last_state = None
 
         print(f'Robot {robot_name} state machine creating')
         # print(self.current_state.id)
 
     """" Entering state functions """
+    def before_transition(self, event, state):
+        self.last_state = self.current_state
+
     def on_enter_state(self, event, state):
         print(f"Entering '{state.id}' state from '{event}' event.")
-
 
     """" Entering state functions: END """
 
     """" Internal loop functions """
+
     def on_idle(self):
         pass
-        #print('on_internal_idle')
+        # print('on_internal_idle')
 
     def on_waypoint_follower(self):
         print('on_waypoint_follower')
@@ -127,6 +115,10 @@ class RobotStateTransition(StateMachine, RobotModel):
     """" Internal loop functions: END """
 
     """" Conditional functions """
+    def no_obstacle_cond(self, event_data):
+        print(event_data.transition)
+        return event_data.transition.target == self.last_state
+
     def lost_line_cond(self):
         return not self.line_detected
 
@@ -135,14 +127,25 @@ class RobotStateTransition(StateMachine, RobotModel):
 
     def got_error(self):
         return self.err
+
     """" Conditional functions: END"""
 
     """" Validator functions"""
+
     def lost_line_validator(self):
         pass
 
     """" Validator functions: END"""
 
+if __name__ == '__main__':
 
+    robot_name = 'Vikings1'
+    rsm = RobotStateTransition(robot_name=robot_name)
 
+    graph = DotGraphMachine(RobotStateTransition)
+    graph().write_png("test.png")
 
+    rsm.turn_on()
+
+    graph = DotGraphMachine(rsm)
+    graph().write_png("test1.png")

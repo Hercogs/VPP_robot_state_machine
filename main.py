@@ -15,36 +15,39 @@ from robot_state_machine import RobotStateTransition
 from statemachine.contrib.diagram import DotGraphMachine
 
 
-
-# Run a transition
 robot_name = 'Vikings1'
 rsm = RobotStateTransition(robot_name=robot_name)
 
+# Generate state machine graph
 graph = DotGraphMachine(RobotStateTransition)
-dot = graph()
-graph().write_png("a.png")
+graph().write_png("initial_state_machine.png")
+
+# Get all states
+rsm_states = [state.value for state in rsm.states]
+
+# Get all transitions
+rsm_transitions_unfiltered = [[tr.event for tr in transitions_list.transitions] for transitions_list in rsm.states]
+rsm_transitions = set()
+for i in rsm_transitions_unfiltered:
+    for j in i:
+        rsm_transitions.add(j)
 
 
+print(f'\nRobot has following states: {rsm_states}')
+print(f'Robot has following transitions: {rsm_transitions}\n')
+print(f'To switch between states, use command transitions.')
 
+while True:
+    transition_cmd = input(f'Enter transition (current state: {rsm.current_state.value}): ')
 
-# rsm_states = [state.value for state in rsm.states]
-
-# # print(rsm.states[0])
-# #
-# print(f'\nRobot has following states: {rsm_states}')
-# print(f'To switch between states, use command "state_name". For example, '
-#       'to switch to idle, enter "idle". To switch to current state, enter nothing')
-# print(f'Current state: {rsm.current_state.value}')
-
-# while True:
-#     next_state = input(f'Enter next state (current: {rsm.current_state.value}): ')
-
-#     if not next_state:
-#         rsm.internal_cycle()
-#     elif next_state in rsm_states:
-#         try:
-#             rsm.send('to_' + next_state)
-#         except Exception as ex:
-#             print(f'Error: {ex}')
-#     else:
-#         print('Invalid input, state does not exist')
+    if not transition_cmd:
+        # If empty input, generate graph
+        graph = DotGraphMachine(rsm)
+        graph().write_png("current_state_machine.png")
+    elif transition_cmd in rsm_transitions:
+        try:
+            rsm.send(transition_cmd)
+        except Exception as ex:
+            print(f'Error: {ex}')
+    else:
+        print('Invalid input, state transitions does not exist')
