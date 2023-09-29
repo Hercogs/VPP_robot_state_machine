@@ -34,7 +34,7 @@ class RobotMqttCommunication:
         self.subscribe()
 
     def on_message(self, client, userdata, msg):
-        print(msg.topic+" "+str(msg.payload))
+        print(msg.topic + " " + str(msg.payload))
 
     def subscribe(self):
         print('Subscribe to topics')
@@ -50,13 +50,10 @@ class RobotMqttCommunication:
             print('MSG published')
 
 
-
-
 client = RobotMqttCommunication(IP, PORT)
 
 # Loop MQTT client in separate thread
 client.mqtt_client.loop_start()
-
 
 # Create robot state machine
 robot_name = 'Vikings1'
@@ -76,10 +73,10 @@ for i in rsm_transitions_unfiltered:
     for j in i:
         rsm_transitions.add(j)
 
-
 print(f'\nRobot has following states: {rsm_states}')
 print(f'Robot has following transitions: {rsm_transitions}\n')
-print(f'To switch between states, use command transitions.')
+print(f'To switch between states, use command transitions.' \
+      'Enter nothing, to generate state machine graph in present time')
 
 while True:
     transition_cmd = input(f'Enter transition (current state: {rsm.current_state.value}): ')

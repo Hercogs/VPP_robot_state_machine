@@ -9,29 +9,23 @@ from statemachine.contrib.diagram import DotGraphMachine
 
 
 class RobotStateTransition(StateMachine, RobotModel):
-    # States
-    start = State(initial=True)  # Turning on robot
-    idle = State()  # Robot on magnetic line, ready to receive command
-    lost = State()  # Robot has lost magnetic line
+    """ STATES """
+    start = State(initial=True)         # Turning on robot
+    idle = State()                      # Robot on magnetic line, ready to receive command
+    lost = State()                      # Robot has lost magnetic line
     remote_control = State()            # Remote control
-    getting_package = State()  # Execute mission - going after package
-    loading_package = State()  # Execute mission - waiting for package loaded
-    deliver_package = State()  # Execute mission - deliver package
-    unloading_package = State()  # Execute mission - waiting for package to be unloaded
-    approach_charger = State()  # Execute mission - drive to charger
-    charge = State()                    # Robot is at cherging position
-    deapproach_charger = State()  # Execute mission - drive away from charger
-    obstacle = State()  # Obstacle detected during mission
+    getting_package = State()           # Execute mission - going after package
+    loading_package = State()           # Execute mission - waiting for package loaded
+    deliver_package = State()           # Execute mission - deliver package
+    unloading_package = State()         # Execute mission - waiting for package to be unloaded
+    approach_charger = State()          # Execute mission - drive to charger
+    charge = State()                    # Robot is at charging position
+    deapproach_charger = State()        # Execute mission - drive away from charger
+    obstacle = State()                  # Obstacle detected during mission
     error = State()                     # Error state - any error (BLDC lost, lidar lost, ...)
-    end = State(final=True)  # Shutting down robot
+    end = State(final=True)             # Shutting down robot
 
-    # idle_lost = State()                 # Robot has lost magnetic line
-    # waypoint_follower = State()         # Executing mission by waypoints (mission pan unclear)
-    # approach_charger = State()          # Executing mission to drive close to charger
-    # at_charger = State()                # Robot is at front of charger, but it does not mean it is charging
-    # deapproach_charger = State()        # Executing mission to drove off from charger
-
-    """ Transitions """
+    """ TRANSITION """
     turn_on = start.to(idle)
 
     lost_line = idle.to(lost)
@@ -70,9 +64,7 @@ class RobotStateTransition(StateMachine, RobotModel):
 
     turn_off = idle.to(end) | lost.to(end) | charge.to(end)| error.to(end)
 
-    """ Transitions """
-
-    # Self transitions
+    """ SELF TRANSITION (not used yet)"""
     # internal_start = start.to.itself(internal=True, on='on_idle')
     # internal_idle = idle.to.itself(internal=True, on='on_idle')
     # internal_idle_lost = idle_lost.to.itself(internal=True, on='on_idle')
@@ -82,7 +74,6 @@ class RobotStateTransition(StateMachine, RobotModel):
     # internal_at_charger = at_charger.to.itself(internal=True, on='on_idle')
     # internal_deapproach_charger = deapproach_charger.to.itself(internal=True, on='on_idle')
     # internal_error = error.to.itself(internal=True, on='on_idle')
-
     # st = start.to(start)
 
     def __init__(self, robot_name='robot_'):
@@ -137,6 +128,8 @@ class RobotStateTransition(StateMachine, RobotModel):
 
     """" Validator functions: END"""
 
+
+# In case of test this module
 if __name__ == '__main__':
 
     robot_name = 'Vikings1'
