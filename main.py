@@ -61,7 +61,7 @@ rsm = RobotStateTransition(robot_name=robot_name)
 
 # Generate state machine graph
 graph = DotGraphMachine(RobotStateTransition)
-graph().write_png("initial_state_machine.png")
+graph().write_png("images/initial_state_machine.png")
 
 # Get all states
 rsm_states = [state.value for state in rsm.states]
@@ -84,7 +84,7 @@ while True:
     if not transition_cmd:
         # If empty input, generate graph
         graph = DotGraphMachine(rsm)
-        graph().write_png("current_state_machine.png")
+        graph().write_png("images/current_state_machine.png")
     elif transition_cmd in rsm_transitions:
         try:
             rsm.send(transition_cmd)
